@@ -26,7 +26,7 @@ public final class NetworkMessages {
 	private static final List<MessageType<? extends NetworkMessage<ServerNetworkContext>>> serverMessages = new ArrayList<>();
 	private static final List<MessageType<? extends NetworkMessage<ClientNetworkContext>>> clientMessages = new ArrayList<>();
 
-	// public static final MessageType<ComputerActionServerMessage> COMPUTER_ACTION = registerServerbound(0, "computer_action", ComputerActionServerMessage.class, ComputerActionServerMessage::new);
+	public static final MessageType<ComputerActionServerMessage> COMPUTER_ACTION = registerServerbound(0, "computer_action", ComputerActionServerMessage.class, ComputerActionServerMessage::new);
 
 	// public static final MessageType<ChatTableClientMessage> CHAT_TABLE = registerClientbound(10, "chat_table", ChatTableClientMessage.class, ChatTableClientMessage::new);
 
