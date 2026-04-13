@@ -10,7 +10,7 @@ public final class BlockCapabilityProviders {
 	public static void register() {
 		MinecraftForge.EVENT_BUS.addGenericListener(BlockEntity.class, (AttachCapabilitiesEvent<? extends BlockEntity> event) -> {
 			// if (event.getObject() instanceof ChunkLoaderBlockEntity) {
-			// 	ChunkLoaderBlockEntityCapabilityProvider.onGatherCapabilities((AttachCapabilitiesEvent<ChunkLoaderBlockEntity>) (event));
+			// 	ChunkLoaderBlockEntityCapabilityProvider.onGatherCapabilities((AttachCapabilitiesEvent<ChunkLoaderBlockEntity>) event);
 			// 	return;
 			// }
 		});

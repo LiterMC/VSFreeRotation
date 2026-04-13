@@ -16,7 +16,7 @@ public final class RelocateNodeClientMessage implements NetworkMessage<ClientNet
 	private final Vector3dc pos;
 	private final Quaternionfc rotation;
 
-	public RelocateNodeClientMessage(final int id, final int anchorId, final Vector3dc pos, final Quaterniond rotation) {
+	public RelocateNodeClientMessage(final int id, final int anchorId, final Vector3dc pos, final Quaternionfc rotation) {
 		this.id = id;
 		this.anchorId = anchorId;
 		this.pos = pos;

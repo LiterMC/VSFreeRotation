@@ -36,8 +36,6 @@ dependencies {
 	api "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10"
 	forge "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
-	include modApi("dev.architectury:architectury-forge:${architectury_version}")
-
 	compileOnly project(":common")
 	annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
 	implementation "com.google.auto.service:auto-service:1.1.1"
@@ -51,9 +49,9 @@ dependencies {
 	modApi("org.valkyrienskies:valkyrienskies-120-forge:${vs2_version}") { transitive = false }
 
 	implementation "org.valkyrienskies.core:api:${vs_core_version}"
-	implementation "org.valkyrienskies.core:api-game:${vs_core_version}"
-	implementation "org.valkyrienskies.core:util:${vs_core_version}"
 	implementation "org.valkyrienskies.core:impl:${vs_core_version}"
+	implementation "org.valkyrienskies.core:internal:${vs_core_version}"
+	implementation "org.valkyrienskies.core:util:${vs_core_version}"
 
 	implementation "thedarkcolour:kotlinforforge:${kff_version}"
 

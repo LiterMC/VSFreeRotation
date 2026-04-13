@@ -2,7 +2,7 @@ package com.github.litermc.vsfreerotation.impl;
 
 import com.github.litermc.vsfreerotation.core.Node;
 import com.github.litermc.vsfreerotation.util.SerializeUtil;
-
+import org.joml.Matrix4dc;
 import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
 import org.joml.Vector3d;
@@ -33,7 +33,7 @@ public class ShipNode extends Node {
 
 	public void tick() {
 		this.posO = this.getPosition();
-		this.rotataionO = this.getRotataion();
+		this.rotationO = this.getRotation();
 		this.anchorO = this.getAnchor();
 	}
 }

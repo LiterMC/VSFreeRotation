@@ -8,6 +8,18 @@ import net.minecraft.server.level.ServerLevel;
 public final class VSFreeRotationListeners {
 	private VSFreeRotationListeners() {}
 
+	public static void onModInit() {
+		VSFreeRotationRegistry.register();
+	}
+
+	public static void onModSetup() {
+		registerAttachments();
+	}
+
+	private static void registerAttachments() {
+		// ValkyrienSkiesMod.getApi().registerAttachment(AmmoShipAttachment.class);
+	}
+
 	public static void onServerLevelLoad(final ServerLevel level) {
 	}
 

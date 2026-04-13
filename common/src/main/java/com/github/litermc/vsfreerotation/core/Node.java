@@ -21,7 +21,7 @@ public class Node {
 	protected Node anchorO = null;
 
 	public Node() {
-		this(NodeManager.allocateId());
+		this.id = NodeManager.allocateId();
 	}
 
 	public Node(final int id) {
@@ -111,7 +111,7 @@ public class Node {
 	 * @return relative rotation
 	 */
 	public Quaternionf getRotation(final double alpha) {
-		return this.getLastRotation().slerp(this.getRotation(), alpha, new Quaternionf());
+		return this.getLastRotation().slerp(this.getRotation(), (float) alpha, new Quaternionf());
 	}
 
 	/**
@@ -142,7 +142,7 @@ public class Node {
 	 * @return the absolute rotation
 	 */
 	public Quaternionf getAbsRotation(final double alpha) {
-		return this.getLastAbsRotation().slerp(this.getAbsRotation(), alpha);
+		return this.getLastAbsRotation().slerp(this.getAbsRotation(), (float) alpha);
 	}
 
 	/**
@@ -188,8 +188,8 @@ public class Node {
 	protected void onUpdateAnchor(final Node oldAnchor, final Node newAnchor, final Matrix4dc transform) {
 		this.setPosition(transform.transformPosition(this.getPosition(), new Vector3d()));
 		this.posO = transform.transformPosition(this.posO, new Vector3d());
-		this.setRotation(transform.getNormalizedRotation(new Quaternionf()).mul(this.getRotation(), new Vector3d()));
-		this.rotationO = transform.getNormalizedRotation(new Quaternionf()).mul(this.rotationO, new Vector3d());
+		this.setRotation(transform.getNormalizedRotation(new Quaternionf()).mul(this.getRotation()));
+		this.rotationO = transform.getNormalizedRotation(new Quaternionf()).mul(this.rotationO);
 	}
 
 	/**

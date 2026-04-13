@@ -16,7 +16,7 @@ public class MixinMinecraftServer {
 		at = @At("HEAD")
 	)
 	private void runServer$head(final CallbackInfo ci) {
-		PlatformHelperImpl.minecraftServer = ((MinecraftServer) ((Object) (this)));
+		PlatformHelperImpl.minecraftServer = ((MinecraftServer) (Object) this);
 	}
 
 	@Inject(

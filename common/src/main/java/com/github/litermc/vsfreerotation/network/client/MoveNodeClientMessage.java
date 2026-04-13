@@ -15,7 +15,7 @@ public final class MoveNodeClientMessage implements NetworkMessage<ClientNetwork
 	private final Vector3dc movement;
 	private final Quaternionfc rotation;
 
-	public MoveNodeClientMessage(final int id, final Vector3dc movement, final Quaternionf rotation) {
+	public MoveNodeClientMessage(final int id, final Vector3dc movement, final Quaternionfc rotation) {
 		this.id = id;
 		this.movement = movement;
 		this.rotation = rotation;

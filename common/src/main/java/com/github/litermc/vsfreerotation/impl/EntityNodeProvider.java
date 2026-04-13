@@ -1,10 +1,9 @@
 package com.github.litermc.vsfreerotation.impl;
 
+import com.github.litermc.vsfreerotation.accessor.EntityAccessor;
 import com.github.litermc.vsfreerotation.core.Node;
 import com.github.litermc.vsfreerotation.core.NodeProvider;
 
-import it.unimi.dsi.fastutil.ints.Int2IntMap;
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.world.entity.Entity;
@@ -20,36 +19,37 @@ public final class EntityNodeProvider implements NodeProvider {
 	public void removeNode(final int id) {
 		final FreeEntity fe = this.nodes.remove(id);
 		if (fe != null) {
-			((EntityAccessor) (fe.getEntity())).vsfr$setFreeEntity(null);
+			((EntityAccessor) fe.getEntity()).vsfr$setFreeEntity(null);
 		}
 	}
 
 	public void clearNodes() {
+		for (final FreeEntity fe : this.nodes.values()) {
+			((EntityAccessor) fe.getEntity()).vsfr$setFreeEntity(null);
+		}
 		this.nodes.clear();
 	}
 
 	public FreeEntity getFreeEntity(final Entity entity) {
-		return ((EntityAccessor) (entity)).vsfr$getFreeEntity();
-	}
-
-	public FreeEntity getOrCreateFreeEntity(final Entity entity) {
-		final FreeEntity fe = ((EntityAccessor) (entity)).vsfr$getFreeEntity();
-		if (fe != null) {
-			return fe;
-		}
-		final FreeEntity fe = new FreeEntity(entity);
-		this.putFreeEntity(fe);
-		return fe;
+		return ((EntityAccessor) entity).vsfr$getFreeEntity();
 	}
 
 	public FreeEntity createFreeEntity(final int id, final Entity entity) {
-		final FreeEntity fe = new FreeEntity(id, entity);
-		this.putFreeEntity(fe);
-		return fe;
+		final EntityAccessor ea = ((EntityAccessor) entity);
+		final FreeEntity fe = ea.vsfr$getFreeEntity();
+		if (fe != null) {
+			if (fe.getId() != id) {
+				throw new IllegalStateException("Entity get two FreeEntities");
+			}
+			return fe;
+		}
+		final FreeEntity newFe = new FreeEntity(id, entity);
+		ea.vsfr$setFreeEntity(newFe);
+		this.putFreeEntity(newFe);
+		return newFe;
 	}
 
-	private void putFreeEntity(final FreeEntity fe) {
-		((EntityAccessor) (fe.getEntity())).vsfr$setFreeEntity(fe);
+	public void putFreeEntity(final FreeEntity fe) {
 		this.nodes.put(fe.getId(), fe);
 	}
 }

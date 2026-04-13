@@ -1,14 +1,14 @@
 package com.github.litermc.vsfreerotation.core;
 
 import java.util.Set;
-import java.util.concurrent.AtomicInteger;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class NodeManager {
 	private NodeManager() {}
 
 	private static final AtomicInteger ID_ALLOCATOR = new AtomicInteger();
-	private static final Set<NodeProvider> PROVIDERS = new CopyOnWriteArraySet<>(4);
+	private static final Set<NodeProvider> PROVIDERS = new CopyOnWriteArraySet<>();
 
 	/**
 	 * Register a node provider. The nodes provided by the provider can be returned via {@link getNode}.

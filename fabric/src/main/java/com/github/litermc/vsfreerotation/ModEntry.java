@@ -41,5 +41,7 @@ public class ModEntry implements ModInitializer {
 
 		ServerTickEvents.START_SERVER_TICK.register(VSFreeRotationListeners::preServerTick);
 		ServerTickEvents.END_SERVER_TICK.register(VSFreeRotationListeners::postServerTick);
+
+		VSFreeRotationListeners.onModSetup();
 	}
 }
