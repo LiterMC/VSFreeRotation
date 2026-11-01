@@ -318,6 +318,7 @@ processResources {
 	}
 
 	inputs.properties(expandProps)
+	outputs.doNotCacheIf("Process resources cache will not expand props in runClient") { true }
 }
 
 publishing {

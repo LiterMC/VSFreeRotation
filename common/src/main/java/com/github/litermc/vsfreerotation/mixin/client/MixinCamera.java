@@ -64,7 +64,7 @@ public abstract class MixinCamera {
 		final float y, final float x, final float z,
 		final Operation<Quaternionf> operation
 	) {
-		final FreeEntity<?> fe = ((EntityAccessor) entity).vsfr$getFreeEntity();
+		final FreeEntity<?> fe = ((EntityAccessor) this.entity).vsfr$getFreeEntity();
 		if (fe != null && fe.canFreeRotate()) {
 			return rotation;
 		}

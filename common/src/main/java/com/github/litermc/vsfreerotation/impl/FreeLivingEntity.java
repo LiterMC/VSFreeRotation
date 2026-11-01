@@ -3,12 +3,14 @@ package com.github.litermc.vsfreerotation.impl;
 import com.github.litermc.vsfreerotation.accessor.LivingEntityAccessor;
 import com.github.litermc.vsfreerotation.core.Node;
 import com.github.litermc.vsfreerotation.util.MathUtil;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix4dc;
 import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 
 public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
@@ -63,6 +65,7 @@ public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
 	 */
 	public void setHeadPitch(final float headPitch) {
 		this.headPitch = headPitch;
+		this.recalcHeadRotation();
 	}
 
 	/**
@@ -92,6 +95,7 @@ public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
 	 */
 	public void setHeadYaw(final float headYaw) {
 		this.headYaw = headYaw;
+		this.recalcHeadRotation();
 	}
 
 	/**
@@ -99,11 +103,11 @@ public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
 	 * @return absolute head rotation
 	 */
 	public Quaternionf getHeadRotation() {
-		return this.getAbsRotation().rotateY(this.headYaw).rotateX(this.headPitch);
+		return this.getAbsRotation().rotateY(this.headYaw).rotateX(this.headPitch).normalize();
 	}
 
 	public Quaternionf getLastHeadRotation() {
-		return this.getLastAbsRotation().rotateY(this.headYawO).rotateX(this.headPitchO);
+		return this.getLastAbsRotation().rotateY(this.headYawO).rotateX(this.headPitchO).normalize();
 	}
 
 	/**
@@ -115,13 +119,60 @@ public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
 		return this.getLastHeadRotation().slerp(this.getHeadRotation(), alpha);
 	}
 
+	public void recalcHeadRotation() {
+		final Quaternionfc rot = this.getHeadRotation();
+
+		final Vector3f forward = new Vector3f(0, 0, 1).rotate(rot);
+		final Vector3f right = new Vector3f(1, 0, 0).rotate(rot);
+
+		final float pitch = (float) -Math.asin(forward.y);
+		final float yaw;
+		if (Math.abs(right.y) < 0.9) {
+			yaw = (float) Mth.atan2(right.z, right.x);
+		} else {
+			yaw = (float) Mth.atan2(-forward.x, forward.z);
+		}
+
+		final LivingEntity entity = this.getEntity();
+		entity.setXRot(pitch * Mth.RAD_TO_DEG);
+		final float yRot = yaw * Mth.RAD_TO_DEG;
+		entity.setYRot(yRot);
+		entity.yHeadRot = yRot;
+
+		if (Math.signum(yRot) != Math.signum(entity.yRotO)) {
+			entity.yHeadRotO = entity.yRotO = MathUtil.normalizeAngle(entity.yRotO - yRot) + yRot;
+		}
+	}
+
+	public void recalcLastHeadRotation() {
+		final Quaternionfc rot = this.getLastHeadRotation();
+
+		final Vector3f forward = new Vector3f(0, 0, 1).rotate(rot);
+		final Vector3f right = new Vector3f(1, 0, 0).rotate(rot);
+
+		final float pitch = (float) -Math.asin(forward.y);
+		final float yaw;
+		if (Math.abs(right.y) < 0.9) {
+			yaw = (float) Mth.atan2(right.z, right.x);
+		} else {
+			yaw = (float) Mth.atan2(-forward.x, forward.z);
+		}
+
+		final LivingEntity entity = this.getEntity();
+		entity.xRotO = pitch * Mth.RAD_TO_DEG;
+		entity.yHeadRotO = entity.yRotO = yaw * Mth.RAD_TO_DEG;
+	}
+
 	@Override
 	protected void onUpdateAnchor(final Node oldAnchor, final Node newAnchor, final Matrix4dc transform) {
 		super.onUpdateAnchor(oldAnchor, newAnchor, transform);
-		final Vector3f lookVec = transform.transformDirection(new Vector3f(0, 0, 1).rotateY(this.headYaw).rotateX(this.headPitch));
-		this.headPitch = (float) Math.asin(lookVec.y);
-		if (Math.abs(this.headPitch) < Mth.HALF_PI - 0.001f) {
-			this.headYaw = (float) Mth.atan2(lookVec.z, lookVec.x);
+		final Vector3f forward = transform.transformDirection(new Vector3f(0, 0, 1).rotateY(this.headYaw).rotateX(this.headPitch));
+		final Vector3f right = transform.transformDirection(new Vector3f(1, 0, 0).rotateY(this.headYaw).rotateX(this.headPitch));
+		this.headPitch = (float) Math.asin(forward.y);
+		if (Math.abs(forward.y) < 0.1) {
+			this.headYaw = (float) Mth.atan2(-forward.x, forward.z);
+		} else {
+			this.headYaw = (float) Mth.atan2(right.z, right.x);
 		}
 	}
 
@@ -130,23 +181,12 @@ public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
 		super.setOldPosAndRot();
 		this.headPitchO = this.getHeadPitch();
 		this.headYawO = this.getHeadYaw();
+		this.recalcLastHeadRotation();
 	}
 
 	@Override
 	public void tick() {
-		{
-			final Vector3f angles = this.getLastHeadRotation().getEulerAnglesYXZ(new Vector3f());
-			this.getEntity().xRotO = angles.x * Mth.RAD_TO_DEG;
-			this.getEntity().yHeadRotO = this.getEntity().yRotO = -angles.y * Mth.RAD_TO_DEG;
-		}
 		super.tick();
-		{
-			final Vector3f angles = this.getHeadRotation().getEulerAnglesYXZ(new Vector3f());
-			this.getEntity().setXRot(angles.x * Mth.RAD_TO_DEG);
-			final float yRot = -angles.y * Mth.RAD_TO_DEG;
-			this.getEntity().setYRot(yRot);
-			this.getEntity().yHeadRot = yRot;
-		}
 	}
 
 	@Override

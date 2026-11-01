@@ -196,8 +196,10 @@ public class Node {
 	protected void onUpdateAnchor(final Node oldAnchor, final Node newAnchor, final Matrix4dc transform) {
 		this.setPosition(transform.transformPosition(this.getPosition(), new Vector3d()));
 		this.posO = transform.transformPosition(this.posO, new Vector3d());
-		this.setRotation(transform.getNormalizedRotation(new Quaternionf()).mul(this.getRotation()));
-		this.rotationO = transform.getNormalizedRotation(new Quaternionf()).mul(this.rotationO);
+
+		final Quaternionfc rot = transform.getNormalizedRotation(new Quaternionf());
+		this.setRotation(new Quaternionf(this.getRotation()).premul(rot));
+		this.rotationO = new Quaternionf(this.rotationO).premul(rot);
 	}
 
 	/**

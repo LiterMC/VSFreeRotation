@@ -24,6 +24,7 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 @Mod.EventBusSubscriber
 public class ModEntry {
 	public ModEntry() {
+		@SuppressWarnings("removal")
 		final FMLJavaModLoadingContext context = FMLJavaModLoadingContext.get();
 		final IEventBus modBus = context.getModEventBus();
 

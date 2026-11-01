@@ -90,17 +90,8 @@ public abstract class MixinLocalPlayer extends AbstractClientPlayer implements E
 			return;
 		}
 		this.yya = fe.isBodyRotationLocked() ? 0 : ((this.input.jumping ? 1 : 0) + (this.input.shiftKeyDown ? -1 : 0));
-		// TODO: fix arm animation
 		this.xBob = this.xBobO + Mth.wrapDegrees(this.getViewXRot(1) - this.xBobO) * 0.5f;
 		this.yBob = this.yBobO + Mth.wrapDegrees(this.getViewYRot(1) - this.yBobO) * 0.5f;
-		while (this.yBob > 180) {
-			this.yBob -= 360;
-			this.yBobO -= 360;
-		}
-		while (this.yBob < -180) {
-			this.yBob += 360;
-			this.yBobO += 360;
-		}
 	}
 
 	@Inject(method = "moveTowardsClosestSpace", at = @At("HEAD"), cancellable = true)

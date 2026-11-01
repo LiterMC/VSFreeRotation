@@ -365,7 +365,10 @@ public abstract class MixinEntity implements EntityAccessor {
 					relRotation.rotateX(pitch);
 				}
 			} else {
-				float newHeadYaw = fle.getHeadYaw() + yaw;
+				final float oldHeadYaw = fle.getHeadYaw();
+				final float oldHeadPitch = fle.getHeadPitch();
+
+				float newHeadYaw = oldHeadYaw + yaw;
 				if (newHeadYaw > BODY_ROT_CLAMP) {
 					relRotation.rotationY(newHeadYaw - BODY_ROT_CLAMP);
 					newHeadYaw = BODY_ROT_CLAMP;
@@ -373,10 +376,10 @@ public abstract class MixinEntity implements EntityAccessor {
 					relRotation.rotationY(newHeadYaw + BODY_ROT_CLAMP);
 					newHeadYaw = -BODY_ROT_CLAMP;
 				}
-				fle.headYawO += newHeadYaw - fle.getHeadYaw();
+				fle.headYawO += newHeadYaw - oldHeadYaw;
 				fle.setHeadYaw(newHeadYaw);
 
-				float newHeadPitch = fle.getHeadPitch() + pitch;
+				float newHeadPitch = oldHeadPitch + pitch;
 				if (newHeadPitch > Mth.HALF_PI) {
 					if (!lockBodyRotate) {
 						relRotation.rotateX(newHeadPitch - Mth.HALF_PI);
@@ -388,7 +391,7 @@ public abstract class MixinEntity implements EntityAccessor {
 					}
 					newHeadPitch = -Mth.HALF_PI;
 				}
-				fle.headPitchO += newHeadPitch - fle.getHeadPitch();
+				fle.headPitchO += newHeadPitch - oldHeadPitch;
 				fle.setHeadPitch(newHeadPitch);
 			}
 			if (!lockBodyRotate) {
@@ -416,7 +419,14 @@ public abstract class MixinEntity implements EntityAccessor {
 		this.level().getProfiler().pop();
 	}
 
-	@Inject(method = "load", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;readAdditionalSaveData(Lnet/minecraft/nbt/CompoundTag;)V"))
+	@Inject(
+		method = "load",
+		at = @At(
+			value = "INVOKE",
+			target = "Lnet/minecraft/world/entity/Entity;readAdditionalSaveData(Lnet/minecraft/nbt/CompoundTag;)V",
+			shift = At.Shift.AFTER
+		)
+	)
 	public void readAdditionalSaveData(final CompoundTag data, final CallbackInfo ci) {
 		final FreeEntity<?> fe = this.freeEntity;
 		if (fe == null) {
@@ -427,7 +437,14 @@ public abstract class MixinEntity implements EntityAccessor {
 		}
 	}
 
-	@Inject(method = "saveWithoutId", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;addAdditionalSaveData(Lnet/minecraft/nbt/CompoundTag;)V"))
+	@Inject(
+		method = "saveWithoutId",
+		at = @At(
+			value = "INVOKE",
+			target = "Lnet/minecraft/world/entity/Entity;addAdditionalSaveData(Lnet/minecraft/nbt/CompoundTag;)V",
+			shift = At.Shift.AFTER
+		)
+	)
 	public void addAdditionalSaveData(final CompoundTag data, final CallbackInfoReturnable<CompoundTag> ci) {
 		final FreeEntity<?> fe = this.freeEntity;
 		if (fe == null) {
