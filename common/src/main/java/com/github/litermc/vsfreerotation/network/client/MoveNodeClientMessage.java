@@ -12,31 +12,31 @@ import org.joml.Vector3dc;
 
 public final class MoveNodeClientMessage implements NetworkMessage<ClientNetworkContext> {
 	private final int id;
-	private final Vector3dc movement;
+	private final Vector3dc position;
 	private final Quaternionfc rotation;
 
-	public MoveNodeClientMessage(final int id, final Vector3dc movement, final Quaternionfc rotation) {
+	public MoveNodeClientMessage(final int id, final Vector3dc position, final Quaternionfc rotation) {
 		this.id = id;
-		this.movement = movement;
+		this.position = position;
 		this.rotation = rotation;
 	}
 
 	public MoveNodeClientMessage(final FriendlyByteBuf buf) {
 		this.id = buf.readVarInt();
-		this.movement = SerializeUtil.readVector3d(buf);
+		this.position = SerializeUtil.readVector3d(buf);
 		this.rotation = SerializeUtil.readQuaternionf(buf);
 	}
 
 	@Override
 	public void write(final FriendlyByteBuf buf) {
 		buf.writeVarInt(this.id);
-		SerializeUtil.writeVector3d(buf, this.movement);
+		SerializeUtil.writeVector3d(buf, this.position);
 		SerializeUtil.writeQuaternionf(buf, this.rotation);
 	}
 
 	@Override
 	public void handle(final ClientNetworkContext context) {
-		context.moveNode(this.id, this.movement, this.rotation);
+		context.moveNode(this.id, this.position, this.rotation);
 	}
 
 	@Override

@@ -16,9 +16,9 @@ public class Node {
 	private Quaternionfc rotation = MathUtil.ZERO_QUATF;
 	private Node anchor = null;
 
-	protected Vector3dc posO = MathUtil.ZERO_VEC3D;
-	protected Quaternionfc rotationO = MathUtil.ZERO_QUATF;
-	protected Node anchorO = null;
+	public Vector3dc posO = MathUtil.ZERO_VEC3D;
+	public Quaternionfc rotationO = MathUtil.ZERO_QUATF;
+	public Node anchorO = null;
 
 	public Node() {
 		this.id = NodeManager.allocateId();
@@ -56,7 +56,7 @@ public class Node {
 	 * @param alpha The ratio of current tick's position to previous one
 	 * @return relative position
 	 */
-	public Vector3d getPosition(final double alpha) {
+	public Vector3d getPosition(final float alpha) {
 		return this.getLastPosition().lerp(this.getPosition(), alpha, new Vector3d());
 	}
 
@@ -87,7 +87,7 @@ public class Node {
 	 * @param alpha The ratio of current tick's position to previous one
 	 * @return the absolute position
 	 */
-	public Vector3d getAbsPosition(final double alpha) {
+	public Vector3d getAbsPosition(final float alpha) {
 		return this.getLastAbsPosition().lerp(this.getAbsPosition(), alpha);
 	}
 
@@ -110,8 +110,8 @@ public class Node {
 	 * @param alpha The ratio of current tick's rotation to previous one
 	 * @return relative rotation
 	 */
-	public Quaternionf getRotation(final double alpha) {
-		return this.getLastRotation().slerp(this.getRotation(), (float) alpha, new Quaternionf());
+	public Quaternionf getRotation(final float alpha) {
+		return this.getLastRotation().slerp(this.getRotation(), alpha, new Quaternionf());
 	}
 
 	/**
@@ -141,8 +141,8 @@ public class Node {
 	 * @param alpha The ratio of current tick's position to previous one
 	 * @return the absolute rotation
 	 */
-	public Quaternionf getAbsRotation(final double alpha) {
-		return this.getLastAbsRotation().slerp(this.getAbsRotation(), (float) alpha);
+	public Quaternionf getAbsRotation(final float alpha) {
+		return this.getLastAbsRotation().slerp(this.getAbsRotation(), alpha);
 	}
 
 	/**
@@ -175,6 +175,7 @@ public class Node {
 	 * Absolute position and rotation will not change.
 	 * @see getAnchor
 	 * @see setAnchor
+	 * @see onUpdateAnchor
 	 */
 	public void updateAnchor(final Node anchor) {
 		final Node oldAnchor = this.getAnchor();
@@ -185,6 +186,13 @@ public class Node {
 		this.onUpdateAnchor(oldAnchor, anchor, transform);
 	}
 
+	/**
+	 * Invoked when anchor is changed.
+	 * @param oldAnchor The old anchor node.
+	 * @param newAnchor The new anchor node.
+	 * @param transform The transform need to apply to convert positions & rotations from the old anchor to the new anchor.
+	 * @see updateAnchor
+	 */
 	protected void onUpdateAnchor(final Node oldAnchor, final Node newAnchor, final Matrix4dc transform) {
 		this.setPosition(transform.transformPosition(this.getPosition(), new Vector3d()));
 		this.posO = transform.transformPosition(this.posO, new Vector3d());

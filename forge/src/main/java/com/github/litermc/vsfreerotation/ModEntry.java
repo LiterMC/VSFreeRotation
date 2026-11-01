@@ -4,6 +4,7 @@ import com.github.litermc.vsfreerotation.block.BlockCapabilityProviders;
 import com.github.litermc.vsfreerotation.command.VSFreeRotationCommands;
 import com.github.litermc.vsfreerotation.config.ConfigSpec;
 import com.github.litermc.vsfreerotation.platform.ForgeConfigFile;
+import com.github.litermc.vsfreerotation.platform.NetworkHandler;
 
 import com.electronwill.nightconfig.core.file.FileConfig;
 import net.minecraft.server.level.ServerLevel;
@@ -33,6 +34,8 @@ public class ModEntry {
 		modBus.addListener(this::onCommonSetup);
 		modBus.addListener(this::onConfigLoad);
 		modBus.addListener(this::onConfigReload);
+
+		NetworkHandler.setup();
 	}
 
 	private void onCommonSetup(final FMLCommonSetupEvent event) {

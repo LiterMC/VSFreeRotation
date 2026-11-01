@@ -30,6 +30,7 @@ public final class NetworkMessages {
 
 	public static final MessageType<MoveNodeClientMessage> MOVE_NODE = registerClientbound(10, "move_node", MoveNodeClientMessage.class, MoveNodeClientMessage::new);
 	public static final MessageType<RelocateNodeClientMessage> RELOCATE_NODE = registerClientbound(11, "relocate_node", RelocateNodeClientMessage.class, RelocateNodeClientMessage::new);
+	public static final MessageType<AddFreeEntityNodeClientMessage> ADD_FREE_ENTITY = registerClientbound(12, "add_free_entity", AddFreeEntityNodeClientMessage.class, AddFreeEntityNodeClientMessage::new);
 
 	private NetworkMessages() {
 	}

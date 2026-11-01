@@ -7,35 +7,88 @@ import com.github.litermc.vsfreerotation.util.MathUtil;
 import com.github.litermc.vsfreerotation.util.SerializeUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix4dc;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
+import org.joml.primitives.AABBd;
+import org.joml.primitives.AABBdc;
 
-public class FreeEntity extends Node {
-	private final Entity entity;
+import java.util.HashMap;
+import java.util.Map;
+
+public class FreeEntity<T extends Entity> extends Node {
+	private static final Map<Class<?>, ClientFactory<?>> CLIENT_FACTORIES = new HashMap<>();
+	private static final Map<Class<?>, ServerFactory<?>> SERVER_FACTORIES = new HashMap<>();
+
+	static {
+		registerFactory(Entity.class, FreeEntity::new, FreeEntity::new);
+		registerFactory(LivingEntity.class, FreeLivingEntity::new, FreeLivingEntity::new);
+	}
+
+	@NotNull
+	private final T entity;
+	private int anchorId = 0;
+
 	private Vector3dc movement = MathUtil.ZERO_VEC3D;
 
-	public FreeEntity(final Entity entity) {
+	protected FreeEntity(final @NotNull T entity) {
 		super();
 		this.entity = entity;
 	}
 
-	public FreeEntity(final int id, final Entity entity) {
+	protected FreeEntity(final int id, final @NotNull T entity) {
 		super(id);
 		this.entity = entity;
 	}
 
-	public Entity getEntity() {
+	@NotNull
+	public final T getEntity() {
 		return this.entity;
+	}
+
+	public final SynchedEntityData getEntityData() {
+		return this.entity.getEntityData();
+	}
+
+	public boolean isFreeRotationEnabled() {
+		return ((EntityAccessor) this.entity).vsfr$isFreeRotationEnabled();
+	}
+
+	public void setFreeRotationFlag(final boolean flag) {
+		((EntityAccessor) this.entity).vsfr$setFreeRotationFlag(flag);
+	}
+
+	public boolean isBodyRotationLocked() {
+		return ((EntityAccessor) this.entity).vsfr$isBodyRotationLocked();
+	}
+
+	public void setBodyRotationLock(final boolean lock) {
+		((EntityAccessor) this.entity).vsfr$setBodyRotationLock(lock);
+	}
+
+	public boolean canFreeRotate() {
+		return this.isFreeRotationEnabled() && !this.entity.isPassenger();
 	}
 
 	@Override
 	public void setPosition(final Vector3dc pos) {
 		super.setPosition(pos);
-		final Vector3d absPos = this.getAbsPosition();
+		final Vector3d absPos = new Vector3d(this.getPosition());
+		absPos.y -= this.entity.getBbHeight() / 2;
+		this.getAnchorTransform().transformPosition(absPos);
 		((EntityAccessor) this.entity).vsfr$raw$setPosRaw(absPos.x, absPos.y, absPos.z);
+	}
+
+	@Override
+	public void setAnchor(final Node anchor) {
+		super.setAnchor(anchor);
+		this.anchorId = anchor == null ? 0 : anchor.getId();
 	}
 
 	/**
@@ -64,19 +117,42 @@ public class FreeEntity extends Node {
 		this.setMovement(this.getMovement().add(movement, new Vector3d()));
 	}
 
+	/**
+	 * Get the dimensions of the entity.
+	 */
+	public AABBdc getDimensions() {
+		final double width_2 = this.entity.getBbWidth() / 2;
+		final double height_2 = this.entity.getBbHeight() / 2;
+		return new AABBd(-width_2, -height_2, -width_2, width_2, height_2, width_2);
+	}
+
 	@Override
 	protected void onUpdateAnchor(final Node oldAnchor, final Node newAnchor, final Matrix4dc transform) {
 		super.onUpdateAnchor(oldAnchor, newAnchor, transform);
-		final Vector3dc movement = this.getMovement();
-		if (movement.equals(MathUtil.ZERO_VEC3D)) {
-			this.setMovement(transform.transformDirection(movement, new Vector3d()));
-		}
+		this.setMovement(transform.transformDirection(this.getMovement(), new Vector3d()));
 	}
 
-	public void tick() {
+	public void maybeBackOffFromEdge(final Vector3d movement, final MoverType moverType) {
+		// throw new UnsupportedOperationException("Unimplemented method 'maybeBackOffFromEdge'");
+	}
+
+	public void setOldPosAndRot() {
 		this.posO = this.getPosition();
 		this.rotationO = this.getRotation();
 		this.anchorO = this.getAnchor();
+	}
+
+	/**
+	 * Will be invoked at the beginning of {@link Entity#baseTick()}
+	 */
+	public void tick() {
+		if (this.anchorId != 0 && this.getAnchor() == null) {
+			final Node anchor = NodeManager.getNode(this.anchorId);
+			if (anchor != null) {
+				this.setAnchor(anchor);
+			}
+		}
+		this.setOldPosAndRot();
 	}
 
 	public void save(final CompoundTag data) {
@@ -85,6 +161,8 @@ public class FreeEntity extends Node {
 		final Node anchor = this.getAnchor();
 		if (anchor != null) {
 			data.putInt("anchor", anchor.getId());
+		} else if (this.anchorId != 0) {
+			data.putInt("anchor", this.anchorId);
 		}
 	}
 
@@ -93,7 +171,45 @@ public class FreeEntity extends Node {
 		this.posO = this.getPosition();
 		this.setRotation(SerializeUtil.listToQuaternionf(data.getList("rotation", Tag.TAG_FLOAT)));
 		this.rotationO = this.getRotation();
-		this.setAnchor(NodeManager.getNode(data.getInt("anchor")));
+		this.anchorId = data.getInt("anchor");
+		this.setAnchor(NodeManager.getNode(this.anchorId));
 		this.anchorO = this.getAnchor();
+	}
+
+	public static final <T extends Entity> void registerFactory(Class<T> entityClass, ClientFactory<T> client, ServerFactory<T> server) {
+		CLIENT_FACTORIES.put(entityClass, client);
+		SERVER_FACTORIES.put(entityClass, server);
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public static final FreeEntity<?> createClient(final int id, final @NotNull Entity entity) {
+		for (Class<?> clazz = entity.getClass(); Entity.class.isAssignableFrom(clazz); clazz = clazz.getSuperclass()) {
+			final ClientFactory factory = CLIENT_FACTORIES.get(clazz);
+			if (factory != null) {
+				return factory.create(id, entity);
+			}
+		}
+		throw new IllegalStateException("Base factory missing in factories map!");
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public static final FreeEntity<?> createServer(final @NotNull Entity entity) {
+		for (Class<?> clazz = entity.getClass(); Entity.class.isAssignableFrom(clazz); clazz = clazz.getSuperclass()) {
+			final ServerFactory factory = SERVER_FACTORIES.get(clazz);
+			if (factory != null) {
+				return factory.create(entity);
+			}
+		}
+		throw new IllegalStateException("Base factory missing in factories map!");
+	}
+
+	@FunctionalInterface
+	public interface ClientFactory<T extends Entity> {
+		FreeEntity<? extends T> create(int id, T entity);
+	}
+
+	@FunctionalInterface
+	public interface ServerFactory<T extends Entity> {
+		FreeEntity<? extends T> create(T entity);
 	}
 }

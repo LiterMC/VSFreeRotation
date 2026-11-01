@@ -13,6 +13,7 @@ pluginManagement {
 			url = 'https://maven.fabricmc.net'
 			content {
 				includeGroupAndSubgroups('net.fabricmc')
+				includeGroup('fabric-loom')
 			}
 		}
 		maven {

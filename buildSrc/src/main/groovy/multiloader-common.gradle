@@ -143,18 +143,22 @@ repositories {
 		}
 	}
 
-	exclusiveContent {
-		forRepository {
-			maven {
-				name = 'Valkyrien Skies'
-				url = 'https://maven.valkyrienskies.org'
-			}
-		}
-		filter {
-			includeGroup('com.github.Rubydesic')
-			includeGroup('org.mapstruct')
-			includeGroupAndSubgroups('org.valkyrienskies')
-		}
+	// exclusiveContent {
+	// 	forRepository {
+	// 		maven {
+	// 			name = 'Valkyrien Skies'
+	// 			url = 'https://maven.valkyrienskies.org'
+	// 		}
+	// 	}
+	// 	filter {
+	// 		includeGroup('com.github.Rubydesic')
+	// 		includeGroup('org.mapstruct')
+	// 		includeGroupAndSubgroups('org.valkyrienskies')
+	// 	}
+	// }
+	maven {
+		name = 'Valkyrien Skies'
+		url = 'https://maven.valkyrienskies.org'
 	}
 
 	exclusiveContent {

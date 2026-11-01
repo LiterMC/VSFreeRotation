@@ -4,55 +4,224 @@ import com.github.litermc.vsfreerotation.accessor.EntityAccessor;
 import com.github.litermc.vsfreerotation.accessor.LevelAccessor;
 import com.github.litermc.vsfreerotation.impl.EntityNodeProvider;
 import com.github.litermc.vsfreerotation.impl.FreeEntity;
-import net.minecraft.server.level.ServerLevel;
+import com.github.litermc.vsfreerotation.impl.FreeLivingEntity;
+import com.github.litermc.vsfreerotation.util.CollisionUtil;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.gameevent.GameEvent;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Matrix4d;
+import org.joml.Matrix4dc;
+import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
 import org.joml.Vector3d;
 import org.objectweb.asm.Opcodes;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Entity.class)
 public abstract class MixinEntity implements EntityAccessor {
 	@Unique
-	private FreeEntity freeEntity = null;
+	private static final EntityDataAccessor<Boolean> FREE_ROTATION_FLAG = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BOOLEAN);
+	@Unique
+	private static final EntityDataAccessor<Boolean> BODY_ROTATION_LOCKED = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BOOLEAN);
+	@Unique
+	private static final float BODY_ROT_CLAMP = 50 * Mth.DEG_TO_RAD;
+
+	@Shadow
+	@Final
+	protected SynchedEntityData entityData;
+	@Shadow
+	public boolean noPhysics;
+	@Shadow
+	public boolean wasOnFire;
+	@Shadow
+	public boolean isInPowderSnow;
+	@Shadow
+	protected Vec3 stuckSpeedMultiplier;
+	@Shadow
+	public boolean horizontalCollision;
+	@Shadow
+	public boolean verticalCollision;
+	@Shadow
+	public boolean verticalCollisionBelow;
+	@Shadow
+	public boolean minorHorizontalCollision;
+	@Shadow
+	public float walkDist;
+	@Shadow
+	public float moveDist;
+	@Shadow
+	public float flyDist;
+	@Shadow
+	private float nextStep;
+
+	@Unique
+	private FreeEntity<?> freeEntity = null;
 
 	@Unique
 	private boolean setPosRawFlag = false;
 	@Unique
 	private boolean setDeltaMovementFlag = false;
 
-	@Shadow
-	public abstract Level level();
-
 	@Inject(method = "<init>", at = @At("RETURN"))
 	public void init(final EntityType<?> type, final Level level, final CallbackInfo ci) {
-		if (level instanceof ServerLevel serverLevel) {
-			this.freeEntity = new FreeEntity((Entity) (Object) this);
-			((LevelAccessor) serverLevel).vsfr$getEntityNodeProvider().putFreeEntity(this.freeEntity);
+		this.entityData.define(FREE_ROTATION_FLAG, false);
+		this.entityData.define(BODY_ROTATION_LOCKED, false);
+
+		if (!level.isClientSide()) {
+			this.freeEntity = FreeEntity.createServer((Entity) (Object) this);
 		}
 	}
 
+	@Shadow
+	public abstract Level level();
+
+	@Shadow
+	public abstract Vec3 position();
+
+	@Shadow
+	public abstract AABB getBoundingBox();
+
+	@Shadow
+	public abstract boolean isRemoved();
+
+	@Shadow
+	public abstract boolean onGround();
+
+	@Shadow
+	public abstract boolean isOnFire();
+
+	@Shadow
+	public abstract boolean isInWater();
+
+	@Shadow
+	public abstract boolean isInWaterRainOrBubble();
+
+	@Shadow
+	public abstract boolean isPassenger();
+
+	@Shadow
+	public abstract void setPosRaw(double x, double y, double z);
+
+	@Shadow
+	public abstract void setPos(double x, double y, double z);
+
+	@Shadow
+	public abstract Vec3 getDeltaMovement();
+
+	@Shadow
+	public abstract void setDeltaMovement(Vec3 movement);
+
+	@Shadow
+	public abstract void setDeltaMovement(double x, double y, double z);
+
+	@Shadow
+	public abstract Pose getPose();
+
+	@Shadow
+	public abstract EntityDimensions getDimensions(Pose pose);
+
+	@Shadow
+	public abstract float getBbHeight();
+
+	@Shadow
+	protected abstract float nextStep();
+
+	@Shadow
+	protected abstract void waterSwimSound();
+
+	@Shadow
+	protected abstract void playEntityOnFireExtinguishedSound();
+
+	@Shadow
+	protected abstract boolean vibrationAndSoundEffectsFromBlock(BlockPos pos, BlockState state, boolean playStepSound, boolean broadcastGameEvent, Vec3 vec3);
+
+	@Shadow
+	protected abstract void tryCheckInsideBlocks();
+
+	@Shadow
+	public abstract int getRemainingFireTicks();
+
+	@Shadow
+	public abstract void setRemainingFireTicks(int remainingFireTicks);
+
+	@Shadow
+	protected abstract Vec3 limitPistonMovement(Vec3 movement);
+
+	@Shadow
+	public abstract void setOnGroundWithKnownMovement(boolean onGround, Vec3 movement);
+
+	@Shadow
+	public abstract BlockPos getOnPos();
+
+	@Shadow
+	public abstract BlockPos getOnPosLegacy();
+
+	@Shadow
+	protected abstract Entity.MovementEmission getMovementEmission();
+
+	@Shadow
+	protected abstract int getFireImmuneTicks();
+
+	@Shadow
+	public abstract void gameEvent(GameEvent event);
+
 	@Override
-	public FreeEntity vsfr$getFreeEntity() {
+	public FreeEntity<?> vsfr$getFreeEntity() {
 		return this.freeEntity;
 	}
 
 	@Override
-	public void vsfr$setFreeEntity(final FreeEntity fe) {
+	public void vsfr$setFreeEntity(final FreeEntity<?> fe) {
 		this.freeEntity = fe;
+	}
+
+	@Override
+	public boolean vsfr$isFreeRotationEnabled() {
+		return this.entityData.get(FREE_ROTATION_FLAG);
+	}
+
+	@Override
+	public void vsfr$setFreeRotationFlag(final boolean flag) {
+		this.entityData.set(FREE_ROTATION_FLAG, flag);
+	}
+
+	@Override
+	public boolean vsfr$isBodyRotationLocked() {
+		return this.entityData.get(BODY_ROTATION_LOCKED);
+	}
+
+	@Override
+	public void vsfr$setBodyRotationLock(final boolean lock) {
+		this.entityData.set(BODY_ROTATION_LOCKED, lock);
 	}
 
 	@Inject(method = "setRemoved", at = @At("RETURN"))
 	public void setRemoved(final Entity.RemovalReason reason, final CallbackInfo ci) {
-		final FreeEntity fe = this.freeEntity;
+		final FreeEntity<?> fe = this.freeEntity;
 		if (fe == null) {
 			return;
 		}
@@ -63,7 +232,7 @@ public abstract class MixinEntity implements EntityAccessor {
 
 	@Inject(method = "setLevel", at = @At("HEAD"))
 	public void setLevel(final Level newLevel, final CallbackInfo ci) {
-		final FreeEntity fe = this.freeEntity;
+		final FreeEntity<?> fe = this.freeEntity;
 		if (fe == null) {
 			return;
 		}
@@ -71,14 +240,24 @@ public abstract class MixinEntity implements EntityAccessor {
 		if (oldLevel == newLevel) {
 			return;
 		}
-		final EntityNodeProvider oldProvider = ((LevelAccessor) oldLevel).vsfr$getEntityNodeProvider();
-		oldProvider.removeNode(fe.getId());
-		final EntityNodeProvider newProvider = ((LevelAccessor) newLevel).vsfr$getEntityNodeProvider();
-		newProvider.putFreeEntity(fe);
+		if (oldLevel != null) {
+			final EntityNodeProvider oldProvider = ((LevelAccessor) oldLevel).vsfr$getEntityNodeProvider();
+			oldProvider.removeNode(fe.getId());
+		}
+		if (newLevel != null) {
+			final EntityNodeProvider newProvider = ((LevelAccessor) newLevel).vsfr$getEntityNodeProvider();
+			newProvider.putFreeEntity(fe);
+		}
 	}
 
-	@Shadow
-	public abstract void setPosRaw(double x, double y, double z);
+	@Inject(method = "setOldPosAndRot", at = @At("RETURN"))
+	public void setOldPosAndRot(final CallbackInfo ci) {
+		final FreeEntity<?> fe = this.freeEntity;
+		if (fe == null) {
+			return;
+		}
+		fe.setOldPosAndRot();
+	}
 
 	@Override
 	public void vsfr$raw$setPosRaw(final double x, final double y, final double z) {
@@ -90,21 +269,18 @@ public abstract class MixinEntity implements EntityAccessor {
 		}
 	}
 
-	@Inject(method = "setPosRaw", at = @At(value = "FIELD", target = "Lnet/minecraft/world/entity/Entity;position:Lnet/minecraft/world/phys/Vec3;", opcode = Opcodes.GETFIELD))
+	@Inject(method = "setPosRaw", at = @At(value = "FIELD", target = "Lnet/minecraft/world/entity/Entity;position:Lnet/minecraft/world/phys/Vec3;", opcode = Opcodes.PUTFIELD))
 	public void setPosRaw(final double x, final double y, final double z, final CallbackInfo ci) {
 		if (this.setPosRawFlag) {
 			return;
 		}
-		final FreeEntity fe = this.freeEntity;
+		final FreeEntity<?> fe = this.freeEntity;
 		if (fe == null) {
 			return;
 		}
-		final Matrix4d anchor = fe.getAnchorTransform().invert();
-		fe.setPosition(anchor.transformPosition(x, y, z, new Vector3d()));
+		final Matrix4dc anchor = fe.getAnchorTransform().invert();
+		fe.setPosition(anchor.transformPosition(new Vector3d(x, y, z)).add(0, this.getBbHeight() / 2, 0));
 	}
-
-	@Shadow
-	public abstract void setDeltaMovement(Vec3 movement);
 
 	@Override
 	public void vsfr$raw$setDeltaMovement(final Vec3 movement) {
@@ -121,11 +297,266 @@ public abstract class MixinEntity implements EntityAccessor {
 		if (this.setDeltaMovementFlag) {
 			return;
 		}
-		final FreeEntity fe = this.freeEntity;
+		final FreeEntity<?> fe = this.freeEntity;
 		if (fe == null) {
 			return;
 		}
-		final Matrix4d anchor = fe.getAnchorTransform().invert();
+		final Matrix4dc anchor = fe.getAnchorTransform().invert();
 		fe.setMovement(anchor.transformDirection(movement.x, movement.y, movement.z, new Vector3d()));
+	}
+
+	@WrapMethod(method = "setPose")
+	public void setPose(final Pose newPose, final Operation<Void> operation) {
+		final Pose oldPose = this.getPose();
+		operation.call(newPose);
+		if (oldPose == newPose) {
+			return;
+		}
+
+		if (!this.level().isClientSide) {
+			return;
+		}
+		final FreeEntity<?> fe = this.freeEntity;
+		if (fe == null) {
+			return;
+		}
+		final float oldHeight = this.getDimensions(oldPose).height;
+		final float newHeight = this.getDimensions(newPose).height;
+		if (oldHeight == newHeight) {
+			return;
+		}
+		if (fe.getAnchor() == null) {
+			return;
+		}
+		final Matrix4dc anchor = fe.getAnchorTransform().invert();
+		final Vec3 pos = this.position();
+		fe.setPosition(
+			anchor.transformPosition(new Vector3d(pos.x, pos.y, pos.z))
+				.add(fe.getRotation().transform(new Vector3d(0, newHeight / 2, 0)))
+		);
+	}
+
+	protected float vsfr$getTurnRoll() {
+		return 0;
+	}
+
+	@Inject(method = "turn", at = @At("HEAD"))
+	public void turn(final double x, final double y, final CallbackInfo ci) {
+		final FreeEntity<?> fe = this.freeEntity;
+		if (fe == null || !fe.canFreeRotate()) {
+			return;
+		}
+		final FreeLivingEntity<?> fle = this.freeEntity instanceof final FreeLivingEntity<?> e ? e : null;
+
+		// TODO: prevent / clamp turning when going to hit block
+
+		final float roll = this.vsfr$getTurnRoll();
+		final boolean lockBodyRotate = fe.isBodyRotationLocked();
+		final boolean lockHeadRotate = fle == null || fle.isHeadRotationLocked();
+
+		if (x != 0 || y != 0 || roll != 0) {
+			final float yaw = -((float) x) * 0.15f * Mth.DEG_TO_RAD;
+			final float pitch = ((float) y) * 0.15f * Mth.DEG_TO_RAD;
+
+			final Quaternionf relRotation = new Quaternionf();
+			if (lockHeadRotate) {
+				relRotation.rotationY(yaw);
+				if (!lockBodyRotate) {
+					relRotation.rotateX(pitch);
+				}
+			} else {
+				float newHeadYaw = fle.getHeadYaw() + yaw;
+				if (newHeadYaw > BODY_ROT_CLAMP) {
+					relRotation.rotationY(newHeadYaw - BODY_ROT_CLAMP);
+					newHeadYaw = BODY_ROT_CLAMP;
+				} else if (newHeadYaw < -BODY_ROT_CLAMP) {
+					relRotation.rotationY(newHeadYaw + BODY_ROT_CLAMP);
+					newHeadYaw = -BODY_ROT_CLAMP;
+				}
+				fle.headYawO += newHeadYaw - fle.getHeadYaw();
+				fle.setHeadYaw(newHeadYaw);
+
+				float newHeadPitch = fle.getHeadPitch() + pitch;
+				if (newHeadPitch > Mth.HALF_PI) {
+					if (!lockBodyRotate) {
+						relRotation.rotateX(newHeadPitch - Mth.HALF_PI);
+					}
+					newHeadPitch = Mth.HALF_PI;
+				} else if (newHeadPitch < -Mth.HALF_PI) {
+					if (!lockBodyRotate) {
+						relRotation.rotateX(newHeadPitch + Mth.HALF_PI);
+					}
+					newHeadPitch = -Mth.HALF_PI;
+				}
+				fle.headPitchO += newHeadPitch - fle.getHeadPitch();
+				fle.setHeadPitch(newHeadPitch);
+			}
+			if (!lockBodyRotate) {
+				relRotation.rotateZ(roll);
+				if (lockHeadRotate && fle != null) {
+					final Quaternionf headLocal = new Quaternionf().rotationYXZ(fle.getHeadYaw(), fle.getHeadPitch(), 0);
+					relRotation.premul(headLocal);
+					relRotation.mul(headLocal.conjugate());
+				}
+			}
+
+			fe.setRotation(new Quaternionf(fe.getRotation()).mul(relRotation).normalize());
+			fe.rotationO = new Quaternionf(fe.getLastRotation()).mul(relRotation).normalize();
+		}
+	}
+
+	@Inject(method = "baseTick", at = @At("HEAD"))
+	public void baseTick(final CallbackInfo ci) {
+		final FreeEntity<?> fe = this.freeEntity;
+		if (fe == null) {
+			return;
+		}
+		this.level().getProfiler().push("freeEntityTick");
+		fe.tick();
+		this.level().getProfiler().pop();
+	}
+
+	@Inject(method = "load", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;readAdditionalSaveData(Lnet/minecraft/nbt/CompoundTag;)V"))
+	public void readAdditionalSaveData(final CompoundTag data, final CallbackInfo ci) {
+		final FreeEntity<?> fe = this.freeEntity;
+		if (fe == null) {
+			return;
+		}
+		if (data.contains("FreeRotationData", Tag.TAG_COMPOUND)) {
+			fe.load(data.getCompound("FreeRotationData"));
+		}
+	}
+
+	@Inject(method = "saveWithoutId", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;addAdditionalSaveData(Lnet/minecraft/nbt/CompoundTag;)V"))
+	public void addAdditionalSaveData(final CompoundTag data, final CallbackInfoReturnable<CompoundTag> ci) {
+		final FreeEntity<?> fe = this.freeEntity;
+		if (fe == null) {
+			return;
+		}
+		final CompoundTag frData = new CompoundTag();
+		fe.save(frData);
+		data.put("FreeRotationData", frData);
+	}
+
+	@Inject(method = "move", at = @At("HEAD"), cancellable = true)
+	public void move(final MoverType moverType, Vec3 movementVec, final CallbackInfo ci) {
+		if (this.noPhysics) {
+			return;
+		}
+		final FreeEntity<?> fe = this.freeEntity;
+		if (fe == null || !fe.canFreeRotate()) {
+			return;
+		}
+
+		this.wasOnFire = this.isOnFire();
+
+		if (moverType == MoverType.PISTON) {
+			movementVec = this.limitPistonMovement(movementVec);
+			if (movementVec.equals(Vec3.ZERO)) {
+				return;
+			}
+		}
+
+		final Vector3d movement = new Vector3d(movementVec.x, movementVec.y, movementVec.z);
+		if (this.stuckSpeedMultiplier.lengthSqr() > 1e-7) {
+			movement.mul(this.stuckSpeedMultiplier.x, this.stuckSpeedMultiplier.y, this.stuckSpeedMultiplier.z);
+			this.stuckSpeedMultiplier = Vec3.ZERO;
+			this.setDeltaMovement(Vec3.ZERO);
+		}
+		fe.maybeBackOffFromEdge(movement, moverType);
+
+		final Quaternionfc rotation = fe.getAbsRotation();
+		final Vector3d movementWill = rotation.transform(new Vector3d(movement));
+
+		movement.set(CollisionUtil.collide(fe, movement));
+		movementVec = new Vec3(movement.x, movement.y, movement.z);
+
+		final Vector3d movementActual = rotation.transform(new Vector3d(movement));
+
+		final double movedDist = movement.length();
+		if (movedDist > 1e-4) {
+			// TODO: reset fallDistance
+			final Vec3 pos = this.position();
+			this.setPos(pos.x + movement.x, pos.y + movement.y, pos.z + movement.z);
+		}
+
+		final boolean collideX = Math.abs(movementWill.x - movementActual.x) > 1e-5;
+		final boolean collideZ = Math.abs(movementWill.z - movementActual.z) > 1e-5;
+		final boolean collideY = Math.abs(movementWill.y - movementActual.y) > 1e-5;
+		this.horizontalCollision = collideX || collideZ;
+		this.verticalCollision = collideY;
+		this.verticalCollisionBelow = collideY && movementWill.y < 0;
+		// TODO: detect minorHorizontalCollision
+		this.minorHorizontalCollision = this.horizontalCollision && false;
+
+		this.setOnGroundWithKnownMovement(this.verticalCollisionBelow, movementVec);
+		final BlockPos groundPos = this.getOnPosLegacy();
+		final BlockState groundState = this.level().getBlockState(groundPos);
+		// this.checkFallDamage(movementActual.y, this.onGround(), groundState, groundPos);
+		if (this.isRemoved()) {
+			return;
+		}
+		if (collideX || collideZ) {
+			final Vec3 dm = this.getDeltaMovement();
+			final Vector3d mv = rotation.transform(new Vector3d(dm.x, dm.y, dm.z));
+			if (collideX) {
+				mv.x = 0;
+			}
+			if (collideZ) {
+				mv.z = 0;
+			}
+			rotation.transformInverse(mv);
+			this.setDeltaMovement(mv.x, mv.y, mv.z);
+		}
+		if (collideY) {
+			// TODO: Block.updateEntityAfterFallOn
+		}
+		if (this.onGround()) {
+			// TODO: Block.stepOn
+		}
+		final Entity.MovementEmission movementEmission = this.getMovementEmission();
+		if (movementEmission.emitsAnything() && !this.isPassenger()) {
+			final float scaledMoveDist = (float) (movedDist * 0.6);
+			this.flyDist += scaledMoveDist;
+			this.walkDist += scaledMoveDist;
+			this.moveDist += scaledMoveDist;
+			final BlockPos steppingPos = this.getOnPos();
+			final BlockState stepping = this.level().getBlockState(steppingPos);
+			if (!stepping.isAir() && this.moveDist > this.nextStep) {
+				final boolean steppingOnGround = steppingPos.equals(groundPos);
+				final Vec3 movementWillVec = new Vec3(movementWill.x, movementWill.y, movementWill.z);
+				boolean stepped = this.vibrationAndSoundEffectsFromBlock(groundPos, groundState, movementEmission.emitsSounds(), steppingOnGround, movementWillVec);
+				if (!steppingOnGround) {
+					stepped |= this.vibrationAndSoundEffectsFromBlock(steppingPos, stepping, false, movementEmission.emitsEvents(), movementWillVec);
+				}
+				if (stepped) {
+					this.nextStep = this.nextStep();
+				} else if (this.isInWater()) {
+					this.nextStep = this.nextStep();
+					if (movementEmission.emitsSounds()) {
+						this.waterSwimSound();
+					}
+					if (movementEmission.emitsEvents()) {
+						this.gameEvent(GameEvent.SWIM);
+					}
+				}
+			}
+		}
+		this.tryCheckInsideBlocks();
+		this.setDeltaMovement(movementVec);
+		if (
+			this.level().getBlockStatesIfLoaded(this.getBoundingBox().deflate(1e-6))
+				.noneMatch((state) -> state.is(BlockTags.FIRE) || state.is(Blocks.LAVA))
+		) {
+			if (this.getRemainingFireTicks() <= 0) {
+				this.setRemainingFireTicks(-this.getFireImmuneTicks());
+			}
+			if (this.wasOnFire && (this.isInPowderSnow || this.isInWaterRainOrBubble())) {
+				this.playEntityOnFireExtinguishedSound();
+			}
+		}
+		if (this.isOnFire() && (this.isInPowderSnow || this.isInWaterRainOrBubble())) {
+			this.setRemainingFireTicks(-this.getFireImmuneTicks());
+		}
 	}
 }

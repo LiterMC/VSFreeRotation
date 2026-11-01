@@ -23,7 +23,7 @@ tasks.named('compileJava', JavaCompile) {
 }
 
 processResources {
-	dependsOn(configurations.commonResources)
+	dependsOn(configurations.commonResources, ':common:processResources')
 	from(configurations.commonResources)
 }
 
