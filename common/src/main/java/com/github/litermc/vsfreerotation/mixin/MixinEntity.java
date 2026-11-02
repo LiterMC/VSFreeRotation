@@ -148,6 +148,12 @@ public abstract class MixinEntity implements EntityAccessor {
 	public abstract float getBbHeight();
 
 	@Shadow
+	public abstract float getEyeHeight();
+
+	@Shadow
+	public abstract Vec3 getEyePosition(float partialTick);
+
+	@Shadow
 	protected abstract float nextStep();
 
 	@Shadow
@@ -336,23 +342,60 @@ public abstract class MixinEntity implements EntityAccessor {
 		);
 	}
 
-	protected float vsfr$getTurnRoll() {
-		return 0;
+	@Inject(method = "getEyePosition()Lnet/minecraft/world/phys/Vec3;", at = @At("HEAD"), cancellable = true)
+	public final void getEyePosition(final CallbackInfoReturnable<Vec3> cir) {
+		final FreeEntity<?> fe = this.freeEntity;
+		if (fe == null || !fe.canFreeRotate()) {
+			return;
+		}
+		cir.setReturnValue(this.getEyePosition(1));
 	}
 
-	@Inject(method = "turn", at = @At("HEAD"))
+	@Inject(method = "getEyePosition(F)Lnet/minecraft/world/phys/Vec3;", at = @At("HEAD"), cancellable = true)
+	public final void getEyePosition(final float partialTick, final CallbackInfoReturnable<Vec3> cir) {
+		final FreeEntity<?> fe = this.freeEntity;
+		if (fe == null || !fe.canFreeRotate()) {
+			return;
+		}
+		final Vector3d position = fe.getAbsPosition(partialTick);
+		final double eyeHeight = this.getEyeHeight() - this.getBbHeight() / 2.0;
+		if (eyeHeight != 0) {
+			position.add(fe.getAbsRotation(partialTick).transform(new Vector3d(0, eyeHeight, 0)));
+		}
+		cir.setReturnValue(new Vec3(position.x, position.y, position.z));
+	}
+
+	@Override
+	public void vsfr$readTurnKeybinds(final TurningContext context) {
+	}
+
+	@Inject(method = "turn", at = @At("HEAD"), cancellable = true)
 	public void turn(final double x, final double y, final CallbackInfo ci) {
 		final FreeEntity<?> fe = this.freeEntity;
 		if (fe == null || !fe.canFreeRotate()) {
 			return;
 		}
+		ci.cancel();
+
 		final FreeLivingEntity<?> fle = this.freeEntity instanceof final FreeLivingEntity<?> e ? e : null;
 
 		// TODO: prevent / clamp turning when going to hit block
 
-		final float roll = this.vsfr$getTurnRoll();
-		final boolean lockBodyRotate = fe.isBodyRotationLocked();
-		final boolean lockHeadRotate = fle == null || fle.isHeadRotationLocked();
+		final TurningContext context = new TurningContext();
+		context.lockBodyRotate = fe.isBodyRotationLocked();
+		context.lockHeadRotate = fle == null || fle.isHeadRotationLocked();
+		this.vsfr$readTurnKeybinds(context);
+
+		if (context.resetHead) {
+			if (fle != null) {
+				fle.setHeadPitch(0);
+			}
+			return;
+		}
+
+		final float roll = context.roll;
+		final boolean lockBodyRotate = context.lockBodyRotate;
+		final boolean lockHeadRotate = context.lockHeadRotate;
 
 		if (x != 0 || y != 0 || roll != 0) {
 			final float yaw = -((float) x) * 0.15f * Mth.DEG_TO_RAD;
@@ -364,7 +407,7 @@ public abstract class MixinEntity implements EntityAccessor {
 				if (!lockBodyRotate) {
 					relRotation.rotateX(pitch);
 				}
-			} else {
+			} else if (fle != null) {
 				final float oldHeadYaw = fle.getHeadYaw();
 				final float oldHeadPitch = fle.getHeadPitch();
 
@@ -464,6 +507,7 @@ public abstract class MixinEntity implements EntityAccessor {
 		if (fe == null || !fe.canFreeRotate()) {
 			return;
 		}
+		ci.cancel();
 
 		this.wasOnFire = this.isOnFire();
 

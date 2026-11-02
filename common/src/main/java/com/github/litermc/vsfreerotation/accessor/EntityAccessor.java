@@ -16,4 +16,13 @@ public interface EntityAccessor {
 
 	void vsfr$raw$setPosRaw(double x, double y, double z);
 	void vsfr$raw$setDeltaMovement(Vec3 deltaMovement);
+
+	void vsfr$readTurnKeybinds(TurningContext context);
+
+	public static class TurningContext {
+		public float roll = 0;
+		public boolean resetHead = false;
+		public boolean lockBodyRotate = false;
+		public boolean lockHeadRotate = false;
+	}
 }

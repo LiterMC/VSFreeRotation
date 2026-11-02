@@ -1,10 +1,10 @@
 package com.github.litermc.vsfreerotation.config;
 
 public final class Config {
-	// /**
-	//  * Force load all ships
-	//  */
-	// public static boolean forceLoadAllShips = false;
+	/**
+	 * Roll key speed in deg/s
+	 */
+	public static double playerRollSpeed = 80.0;
 
 	private Config() {}
 }

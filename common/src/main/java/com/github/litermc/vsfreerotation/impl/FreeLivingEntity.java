@@ -3,7 +3,7 @@ package com.github.litermc.vsfreerotation.impl;
 import com.github.litermc.vsfreerotation.accessor.LivingEntityAccessor;
 import com.github.litermc.vsfreerotation.core.Node;
 import com.github.litermc.vsfreerotation.util.MathUtil;
-import net.minecraft.client.player.LocalPlayer;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
@@ -122,21 +122,20 @@ public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
 	}
 
 	private static Vector2f getPitchYaw(final Quaternionfc rotation) {
-		final Matrix3f mat = new Matrix3f();
-		mat.rotate(rotation);
+		final Matrix3f mat = new Matrix3f().rotation(rotation);
 		final Vector3f right = mat.getColumn(0, new Vector3f());
 		final Vector3f up = mat.getColumn(1, new Vector3f());
 		final Vector3f forward = mat.getColumn(2, new Vector3f());
 
 		final Vector2f angles = new Vector2f();
 		angles.x = (float) -Math.asin(forward.y);
-		if (Math.abs(right.y) < 0.9) {
-			angles.y = (float) Mth.atan2(right.z, right.x);
-		} else {
+		if (Math.abs(forward.y) < 0.999) {
 			angles.y = (float) Mth.atan2(-forward.x, forward.z);
-		}
-		if (up.y < 0) {
-			angles.y = MathUtil.normalizeAngle(angles.y + Mth.PI);
+		} else {
+			angles.y = (float) Mth.atan2(right.z, right.x);
+			if (up.y < 0) {
+				angles.y = MathUtil.normalizeAngle(angles.y + Mth.PI);
+			}
 		}
 		return angles;
 	}
@@ -189,6 +188,7 @@ public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
 	@Override
 	public void tick() {
 		super.tick();
+		this.recalcHeadRotation();
 	}
 
 	@Override

@@ -1,16 +1,23 @@
 package com.github.litermc.vsfreerotation.mixin.client;
 
 import com.github.litermc.vsfreerotation.accessor.EntityAccessor;
+import com.github.litermc.vsfreerotation.client.key.KeyBindings;
+import com.github.litermc.vsfreerotation.client.platform.ClientPlatformHelper;
+import com.github.litermc.vsfreerotation.config.Config;
 import com.github.litermc.vsfreerotation.impl.FreeEntity;
+import com.github.litermc.vsfreerotation.impl.FreeLivingEntity;
+import com.github.litermc.vsfreerotation.network.server.PlayerMoveServerMessage;
+
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.Input;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.util.Mth;
 
-import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import org.checkerframework.common.aliasing.qual.Unique;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,6 +27,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(LocalPlayer.class)
 public abstract class MixinLocalPlayer extends AbstractClientPlayer implements EntityAccessor {
+	@Shadow
+	@Final
+	public ClientPacketListener connection;
 	@Shadow
 	public Input input;
 	@Shadow
@@ -31,6 +41,9 @@ public abstract class MixinLocalPlayer extends AbstractClientPlayer implements E
 	@Shadow
 	public float xBobO;
 
+	@Unique
+	private long lastRollTime;
+
 	protected MixinLocalPlayer() {
 		super(null, null);
 	}
@@ -38,29 +51,44 @@ public abstract class MixinLocalPlayer extends AbstractClientPlayer implements E
 	@Shadow
 	protected abstract boolean isControlledCamera();
 
-	// @ModifyExpressionValue(
-	// 	method = {"tick", "sendPosition"},
-	// 	at = @At(value = "NEW", target = "Lnet/minecraft/network/protocol/game/ServerboundMovePlayerPacket$Rot;")
-	// )
-	// public ServerboundMovePlayerPacket.Rot new$ServerboundMovePlayerPacket$Rot(final ServerboundMovePlayerPacket.Rot packet) {
-	// 	final EntityRotationPacketAccessor packetAccessor = ((EntityRotationPacketAccessor)(packet));
-	// 	packetAccessor.vsch$rotation().set(this.vsch$getBodyRotation());
-	// 	packetAccessor.vsch$setHeadPitch(this.vsch$getHeadPitch());
-	// 	packetAccessor.vsch$setHeadYaw(this.vsch$getHeadYaw());
-	// 	return packet;
-	// }
+	@Inject(method = "sendPosition", at = @At("RETURN"))
+	public void sendPosition(final CallbackInfo ci) {
+		if (!this.isControlledCamera()) {
+			return;
+		}
+		final FreeLivingEntity<?> fe = (FreeLivingEntity<?>) this.vsfr$getFreeEntity();
+		if (fe == null || !fe.canFreeRotate()) {
+			return;
+		}
+		this.connection.send(ClientPlatformHelper.get().createPacket(new PlayerMoveServerMessage(
+			fe.getPosition(),
+			fe.getRotation(),
+			fe.getHeadPitch(),
+			fe.getHeadYaw()
+		)));
+	}
 
-	// @ModifyExpressionValue(
-	// 	method = "sendPosition",
-	// 	at = @At(value = "NEW", target = "Lnet/minecraft/network/protocol/game/ServerboundMovePlayerPacket$PosRot;")
-	// )
-	// public ServerboundMovePlayerPacket.PosRot sendPosition$new$ServerboundMovePlayerPacket$PosRot(final ServerboundMovePlayerPacket.PosRot packet) {
-	// 	final EntityRotationPacketAccessor packetAccessor = ((EntityRotationPacketAccessor)(packet));
-	// 	packetAccessor.vsch$rotation().set(this.vsch$getBodyRotation());
-	// 	packetAccessor.vsch$setHeadPitch(this.vsch$getHeadPitch());
-	// 	packetAccessor.vsch$setHeadYaw(this.vsch$getHeadYaw());
-	// 	return packet;
-	// }
+	@Override
+	public void vsfr$readTurnKeybinds(final TurningContext context) {
+		final long now = System.nanoTime();
+		if (KeyBindings.UNLOCK_HEAD_ROTATION.consumeDoubleClick()) {
+			context.resetHead = true;
+			this.lastRollTime = now;
+			return;
+		}
+		if (!context.lockBodyRotate) {
+			context.lockHeadRotate = !KeyBindings.UNLOCK_HEAD_ROTATION.isDown();
+			int rollDir = 0;
+			if (KeyBindings.ROLL_CLOCKWISE.isDown()) {
+				rollDir++;
+			}
+			if (KeyBindings.ROLL_COUNTER_CLOCKWISE.isDown()) {
+				rollDir--;
+			}
+			context.roll = rollDir * (float) Config.playerRollSpeed * Math.min((float) ((now - this.lastRollTime) / 1.0e9), 0.1f) * Mth.DEG_TO_RAD;
+		}
+		this.lastRollTime = now;
+	}
 
 	@WrapOperation(
 		method = "aiStep",
