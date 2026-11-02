@@ -8,9 +8,11 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
+import org.joml.Matrix3f;
 import org.joml.Matrix4dc;
 import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
+import org.joml.Vector2f;
 import org.joml.Vector3f;
 
 public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
@@ -23,7 +25,7 @@ public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
 	protected FreeLivingEntity(final @NotNull T entity) {
 		super(entity);
 		this.setFreeRotationFlag(true);
-		this.setBodyRotationLock(true);
+		this.setBodyRotationLock(false);
 	}
 
 	protected FreeLivingEntity(final int id, final @NotNull T entity) {
@@ -119,23 +121,33 @@ public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
 		return this.getLastHeadRotation().slerp(this.getHeadRotation(), alpha);
 	}
 
+	private static Vector2f getPitchYaw(final Quaternionfc rotation) {
+		final Matrix3f mat = new Matrix3f();
+		mat.rotate(rotation);
+		final Vector3f right = mat.getColumn(0, new Vector3f());
+		final Vector3f up = mat.getColumn(1, new Vector3f());
+		final Vector3f forward = mat.getColumn(2, new Vector3f());
+
+		final Vector2f angles = new Vector2f();
+		angles.x = (float) -Math.asin(forward.y);
+		if (Math.abs(right.y) < 0.9) {
+			angles.y = (float) Mth.atan2(right.z, right.x);
+		} else {
+			angles.y = (float) Mth.atan2(-forward.x, forward.z);
+		}
+		if (up.y < 0) {
+			angles.y = MathUtil.normalizeAngle(angles.y + Mth.PI);
+		}
+		return angles;
+	}
+
 	public void recalcHeadRotation() {
 		final Quaternionfc rot = this.getHeadRotation();
-
-		final Vector3f forward = new Vector3f(0, 0, 1).rotate(rot);
-		final Vector3f right = new Vector3f(1, 0, 0).rotate(rot);
-
-		final float pitch = (float) -Math.asin(forward.y);
-		final float yaw;
-		if (Math.abs(right.y) < 0.9) {
-			yaw = (float) Mth.atan2(right.z, right.x);
-		} else {
-			yaw = (float) Mth.atan2(-forward.x, forward.z);
-		}
+		final Vector2f angles = getPitchYaw(rot);
 
 		final LivingEntity entity = this.getEntity();
-		entity.setXRot(pitch * Mth.RAD_TO_DEG);
-		final float yRot = yaw * Mth.RAD_TO_DEG;
+		entity.setXRot(angles.x * Mth.RAD_TO_DEG);
+		final float yRot = angles.y * Mth.RAD_TO_DEG;
 		entity.setYRot(yRot);
 		entity.yHeadRot = yRot;
 
@@ -146,21 +158,11 @@ public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
 
 	public void recalcLastHeadRotation() {
 		final Quaternionfc rot = this.getLastHeadRotation();
-
-		final Vector3f forward = new Vector3f(0, 0, 1).rotate(rot);
-		final Vector3f right = new Vector3f(1, 0, 0).rotate(rot);
-
-		final float pitch = (float) -Math.asin(forward.y);
-		final float yaw;
-		if (Math.abs(right.y) < 0.9) {
-			yaw = (float) Mth.atan2(right.z, right.x);
-		} else {
-			yaw = (float) Mth.atan2(-forward.x, forward.z);
-		}
+		final Vector2f angles = getPitchYaw(rot);
 
 		final LivingEntity entity = this.getEntity();
-		entity.xRotO = pitch * Mth.RAD_TO_DEG;
-		entity.yHeadRotO = entity.yRotO = yaw * Mth.RAD_TO_DEG;
+		entity.xRotO = angles.x * Mth.RAD_TO_DEG;
+		entity.yHeadRotO = entity.yRotO = angles.y * Mth.RAD_TO_DEG;
 	}
 
 	@Override
