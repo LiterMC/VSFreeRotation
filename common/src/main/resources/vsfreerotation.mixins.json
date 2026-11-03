@@ -9,6 +9,7 @@
 		"MixinLevel",
 		"MixinLivingEntity",
 		"MixinServerEntity",
+		"MixinServerGamePacketListenerImpl",
 		"MixinServerLevel"
 	],
 	"client": [

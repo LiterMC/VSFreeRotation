@@ -21,6 +21,7 @@ import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -31,6 +32,7 @@ import org.joml.Matrix4dc;
 import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -496,6 +498,54 @@ public abstract class MixinEntity implements EntityAccessor {
 		final CompoundTag frData = new CompoundTag();
 		fe.save(frData);
 		data.put("FreeRotationData", frData);
+	}
+
+	@Inject(method = "moveRelative", at = @At("HEAD"), cancellable = true)
+	public void moveRelative(final float power, final Vec3 relMove, final CallbackInfo ci) {
+		final FreeEntity<?> fe = this.freeEntity;
+		if (fe == null || !fe.canFreeRotate()) {
+			return;
+		}
+		ci.cancel();
+
+		final double lengthSqr = relMove.lengthSqr();
+		if (lengthSqr < 1e-8) {
+			return;
+		}
+		final Vector3d move = new Vector3d(relMove.x, relMove.y, relMove.z);
+		if (lengthSqr > 1) {
+			move.normalize();
+		}
+		final Quaternionfc rotation = fe.getRotation();
+		final Quaternionf moveRot = new Quaternionf().rotationY(rotation.getEulerAnglesYXZ(new Vector3f()).y);
+		if (fe instanceof final FreeLivingEntity<?> fle) {
+			final float yaw = fle.getHeadYaw();
+			moveRot.rotateY(yaw);
+			final float yawFix = yaw * 0.3f;
+			if (Math.abs(yawFix) < 1e-6) {
+				fle.setHeadYaw(0);
+			} else {
+				fle.setHeadYaw(yaw - yawFix);
+				fle.setRotation(new Quaternionf(rotation).rotateY(yawFix));
+			}
+			if (!fle.isBodyRotationLocked()) {
+				moveRot.rotateX(fle.getHeadPitch());
+			}
+		}
+
+		move.mul(power);
+		moveRot.transform(move);
+		this.setDeltaMovement(this.getDeltaMovement().add(move.x, move.y, move.z));
+	}
+
+	@Inject(method = "moveTowardsClosestSpace", at = @At("HEAD"), cancellable = true)
+	protected void moveTowardsClosestSpace(final double x, final double y, final double z, final CallbackInfo ci) {
+		final FreeEntity<?> fe = this.freeEntity;
+		if (fe == null || !fe.canFreeRotate()) {
+			return;
+		}
+		ci.cancel();
+		// TODO
 	}
 
 	@Inject(method = "move", at = @At("HEAD"), cancellable = true)

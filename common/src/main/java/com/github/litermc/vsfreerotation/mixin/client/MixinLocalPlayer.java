@@ -22,6 +22,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -108,9 +109,30 @@ public abstract class MixinLocalPlayer extends AbstractClientPlayer implements E
 		return this.onGround();
 	}
 
+	@WrapOperation(
+		method = "aiStep",
+		slice = @Slice(
+			from = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;isFallFlying()Z")
+		),
+		at = @At(
+			value = "INVOKE",
+			target = "Lnet/minecraft/client/player/LocalPlayer;isControlledCamera()Z"
+		)
+	)
+	public boolean aiStep$creativeFly(final LocalPlayer self, final Operation<Boolean> operation) {
+		if (!operation.call(self)) {
+			return false;
+		}
+		final FreeEntity<?> fe = this.vsfr$getFreeEntity();
+		if (fe == null || !fe.canFreeRotate()) {
+			return true;
+		}
+		return false;
+	}
+
 	@Inject(method = "serverAiStep", at = @At("RETURN"))
 	public void serverAiStep(final CallbackInfo ci) {
-		if (this.getAbilities().flying || !this.isControlledCamera()) {
+		if (!this.isControlledCamera()) {
 			return;
 		}
 		final FreeEntity<?> fe = this.vsfr$getFreeEntity();

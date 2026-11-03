@@ -49,6 +49,9 @@ public abstract class MixinLivingEntity extends Entity implements LivingEntityAc
 	@Shadow
 	protected abstract SoundEvent getFallDamageSound(int height);
 
+	@Shadow
+	protected abstract float getFrictionInfluencedSpeed(float friction);
+
 	@Override
 	public boolean vsfr$isHeadRotationLocked() {
 		return this.entityData.get(HEAD_ROTATION_LOCKED);
@@ -71,32 +74,11 @@ public abstract class MixinLivingEntity extends Entity implements LivingEntityAc
 	@Inject(method = "handleRelativeFrictionAndCalculateMovement", at = @At("HEAD"), cancellable = true)
 	public void handleRelativeFrictionAndCalculateMovement(final Vec3 relMove, final float friction, final CallbackInfoReturnable<Vec3> cir) {
 		final FreeLivingEntity<?> fe = (FreeLivingEntity<?>) ((EntityAccessor) this).vsfr$getFreeEntity();
-		if (fe == null || !fe.canFreeRotate() || fe.isBodyRotationLocked()) {
+		if (fe == null || !fe.canFreeRotate()) {
 			return;
 		}
 
-		final float power = this.getFlyingSpeed();
-		final double speed = relMove.lengthSqr();
-		if (speed > 1e-8) {
-			final Vector3d move = new Vector3d(relMove.x, relMove.y, relMove.z);
-			if (speed > 1) {
-				move.normalize();
-			}
-			final float yawSpeed = fe.getHeadYaw() * 0.3f;
-			if (Math.abs(yawSpeed) < 1e-6) {
-				fe.setHeadYaw(0);
-			} else {
-				fe.setHeadYaw(fe.getHeadYaw() - yawSpeed);
-				fe.setRotation(fe.getRotation().rotateY(yawSpeed, new Quaternionf()));
-			}
-			final boolean bodyLocked = fe.isBodyRotationLocked();
-			final Quaternionf rotation = bodyLocked
-				? fe.getAbsRotation().rotateY(fe.getHeadYaw())
-				: fe.getHeadRotation();
-			move.mul(power);
-			rotation.transform(move);
-			this.setDeltaMovement(this.getDeltaMovement().add(move.x, move.y, move.z));
-		}
+		this.moveRelative(this.getFrictionInfluencedSpeed(friction), relMove);
 		final double movementBefore = this.getDeltaMovement().length();
 		// this.setDeltaMovement(this.handleOnClimbable(this.getDeltaMovement()));
 		this.setDeltaMovement(this.getDeltaMovement());
@@ -114,6 +96,17 @@ public abstract class MixinLivingEntity extends Entity implements LivingEntityAc
 		}
 
 		cir.setReturnValue(this.getDeltaMovement());
+	}
+
+	@Inject(method = "shouldDiscardFriction", at = @At("RETURN"), cancellable = true)
+	public void shouldDiscardFriction(final CallbackInfoReturnable<Boolean> cir) {
+		if (cir.getReturnValueZ()) {
+			return;
+		}
+		final FreeEntity<?> fe = ((EntityAccessor) this).vsfr$getFreeEntity();
+		if (fe != null && fe.canFreeRotate()) {
+			cir.setReturnValue(false);
+		}
 	}
 
 	@WrapOperation(
