@@ -517,7 +517,8 @@ public abstract class MixinEntity implements EntityAccessor {
 			move.normalize();
 		}
 		final Quaternionfc rotation = fe.getRotation();
-		final Quaternionf moveRot = new Quaternionf().rotationY(rotation.getEulerAnglesYXZ(new Vector3f()).y);
+		final Vector3f angles = rotation.getEulerAnglesYXZ(new Vector3f());
+		final Quaternionf moveRot = new Quaternionf().rotationY(angles.y);
 		if (fe instanceof final FreeLivingEntity<?> fle) {
 			final float yaw = fle.getHeadYaw();
 			moveRot.rotateY(yaw);
@@ -532,6 +533,7 @@ public abstract class MixinEntity implements EntityAccessor {
 				moveRot.rotateX(fle.getHeadPitch());
 			}
 		}
+		moveRot.rotateX(angles.x).rotateZ(angles.z);
 
 		move.mul(power);
 		moveRot.transform(move);

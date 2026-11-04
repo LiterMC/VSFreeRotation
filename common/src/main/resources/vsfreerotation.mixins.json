@@ -8,6 +8,7 @@
 		"MixinEntity",
 		"MixinLevel",
 		"MixinLivingEntity",
+		"MixinPlayer",
 		"MixinServerEntity",
 		"MixinServerGamePacketListenerImpl",
 		"MixinServerLevel"
