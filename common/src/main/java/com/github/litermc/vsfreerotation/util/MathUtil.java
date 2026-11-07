@@ -38,7 +38,7 @@ public final class MathUtil {
 
 		final Vector2f angles = new Vector2f();
 		angles.x = (float) -Math.asin(Math.min(Math.max(forward.y, -1), 1));
-		if (Math.abs(forward.y) < 0.999) {
+		if (Math.abs(forward.y) < 1) {
 			angles.y = (float) Mth.atan2(-forward.x, forward.z);
 		} else {
 			angles.y = (float) Mth.atan2(right.z, right.x);
@@ -56,7 +56,7 @@ public final class MathUtil {
 		final Vector3f forward = mat.getColumn(2, new Vector3f());
 
 		dest.x = (float) -Math.asin(Math.min(Math.max(forward.y, -1), 1));
-		if (Math.abs(forward.y) < 0.999) {
+		if (Math.abs(forward.y) < 1) {
 			dest.y = (float) Mth.atan2(-forward.x, forward.z);
 			dest.z = (float) Mth.atan2(right.y, up.y);
 		} else {

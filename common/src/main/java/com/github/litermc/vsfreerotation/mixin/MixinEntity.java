@@ -21,7 +21,6 @@ import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.Pose;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -413,13 +412,19 @@ public abstract class MixinEntity implements EntityAccessor {
 				final float oldHeadYaw = fle.getHeadYaw();
 				final float oldHeadPitch = fle.getHeadPitch();
 
+				float bodyYawChange = 0;
 				float newHeadYaw = oldHeadYaw + yaw;
 				if (newHeadYaw > BODY_ROT_CLAMP) {
-					relRotation.rotationY(newHeadYaw - BODY_ROT_CLAMP);
+					bodyYawChange = newHeadYaw - BODY_ROT_CLAMP;
 					newHeadYaw = BODY_ROT_CLAMP;
 				} else if (newHeadYaw < -BODY_ROT_CLAMP) {
-					relRotation.rotationY(newHeadYaw + BODY_ROT_CLAMP);
+					bodyYawChange = newHeadYaw + BODY_ROT_CLAMP;
 					newHeadYaw = -BODY_ROT_CLAMP;
+				}
+				if (bodyYawChange != 0) {
+					fle.bodyYawO += bodyYawChange;
+					fle.setBodyYaw(fle.getBodyYaw() + bodyYawChange);
+					relRotation.rotationY(bodyYawChange);
 				}
 				fle.headYawO += newHeadYaw - oldHeadYaw;
 				fle.setHeadYaw(newHeadYaw);
@@ -517,15 +522,22 @@ public abstract class MixinEntity implements EntityAccessor {
 			move.normalize();
 		}
 		final Quaternionfc rotation = fe.getRotation();
-		final Vector3f angles = rotation.getEulerAnglesYXZ(new Vector3f());
+		final Vector3f angles = fe.getHitboxRotation().getEulerAnglesYXZ(new Vector3f());
 		final Quaternionf moveRot = new Quaternionf().rotationY(angles.y);
 		if (fe instanceof final FreeLivingEntity<?> fle) {
+			float targetYaw = (float) Mth.atan2(-relMove.x, relMove.z);
+			if (targetYaw < -Mth.PI * 5 / 8) {
+				targetYaw += Mth.PI;
+			} else if (targetYaw > Mth.PI * 5 / 8) {
+				targetYaw -= Mth.PI;
+			}
+			targetYaw = Math.min(Math.max(targetYaw, -BODY_ROT_CLAMP), BODY_ROT_CLAMP);
+
 			final float yaw = fle.getHeadYaw();
-			moveRot.rotateY(yaw);
-			final float yawFix = yaw * 0.3f;
-			if (Math.abs(yawFix) < 1e-6) {
-				fle.setHeadYaw(0);
-			} else {
+			moveRot.rotateY(yaw + fle.getBodyYaw());
+			final float yawFix = (yaw - targetYaw) * 0.3f;
+			if (Math.abs(yawFix) > 1e-6) {
+				fle.setBodyYaw(fle.getBodyYaw() + yawFix);
 				fle.setHeadYaw(yaw - yawFix);
 				fle.setRotation(new Quaternionf(rotation).rotateY(yawFix));
 			}

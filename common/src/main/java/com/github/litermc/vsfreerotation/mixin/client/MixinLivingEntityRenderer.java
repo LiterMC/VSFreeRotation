@@ -1,7 +1,6 @@
 package com.github.litermc.vsfreerotation.mixin.client;
 
 import com.github.litermc.vsfreerotation.accessor.EntityAccessor;
-import com.github.litermc.vsfreerotation.impl.FreeEntity;
 import com.github.litermc.vsfreerotation.impl.FreeLivingEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.model.EntityModel;
@@ -37,7 +36,7 @@ public abstract class MixinLivingEntityRenderer {
 		final float partialTick,
 		final Operation<Void> operation
 	) {
-		final FreeEntity<?> fe = ((EntityAccessor) entity).vsfr$getFreeEntity();
+		final FreeLivingEntity<?> fe = (FreeLivingEntity<?>) ((EntityAccessor) entity).vsfr$getFreeEntity();
 		if (fe == null || !fe.canFreeRotate()) {
 			operation.call(self, entity, poseStack, bob, yaw, partialTick);
 			return;
@@ -69,7 +68,8 @@ public abstract class MixinLivingEntityRenderer {
 		final Operation<Void> operation,
 		@Local(argsOnly = true, ordinal = 1) final float partialTick
 	) {
-		if (((EntityAccessor) entity).vsfr$getFreeEntity() instanceof final FreeLivingEntity<?> fe && fe.canFreeRotate()) {
+		final FreeLivingEntity<?> fe = (FreeLivingEntity<?>) ((EntityAccessor) entity).vsfr$getFreeEntity();
+		if (fe != null && fe.canFreeRotate()) {
 			headYaw = -fe.getHeadYaw(partialTick) * Mth.RAD_TO_DEG;
 			headPitch = fe.getHeadPitch(partialTick) * Mth.RAD_TO_DEG;
 		}

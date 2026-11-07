@@ -3,22 +3,21 @@ package com.github.litermc.vsfreerotation.impl;
 import com.github.litermc.vsfreerotation.accessor.LivingEntityAccessor;
 import com.github.litermc.vsfreerotation.core.Node;
 import com.github.litermc.vsfreerotation.util.MathUtil;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.NotNull;
-import org.joml.Matrix3f;
 import org.joml.Matrix4dc;
 import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
 import org.joml.Vector2f;
-import org.joml.Vector3f;
 
 public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
+	private float bodyYaw = 0;
 	private float headPitch = 0;
 	private float headYaw = 0;
 
+	public float bodyYawO = 0;
 	public float headPitchO = 0;
 	public float headYawO = 0;
 
@@ -38,6 +37,50 @@ public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
 
 	public void setHeadRotationLock(final boolean lock) {
 		((LivingEntityAccessor) this.getEntity()).vsfr$setHeadRotationLock(lock);
+	}
+
+	/**
+	 * Get the yaw of the body relative to {@link getRotation() rotation}
+	 * @return yaw of body
+	 */
+	public float getBodyYaw() {
+		return this.bodyYaw;
+	}
+
+	public float getLastBodyYaw() {
+		return this.bodyYawO;
+	}
+
+	/**
+	 * Get the yaw of the body relative to {@link getRotation() rotation}
+	 * @param alpha The ratio of current tick's rotation to previous one
+	 * @return yaw of body
+	 */
+	public float getBodyYaw(final float alpha) {
+		return MathUtil.lerpAngle(alpha, this.bodyYawO, this.bodyYaw);
+	}
+
+	/**
+	 * Set the body yaw relative to current rotation
+	 * @param bodyYaw relative body yaw
+	 */
+	public void setBodyYaw(final float bodyYaw) {
+		this.bodyYaw = MathUtil.normalizeAngle(bodyYaw);
+	}
+
+	@Override
+	public Quaternionf getHitboxRotation() {
+		return this.getAbsRotation().rotateY(-this.bodyYaw).normalize();
+	}
+
+	@Override
+	public Quaternionf getLastHitboxRotation() {
+		return this.getLastAbsRotation().rotateY(-this.bodyYawO).normalize();
+	}
+
+	@Override
+	public Quaternionf getHitboxRotation(final float alpha) {
+		return this.getLastHitboxRotation().slerp(this.getHitboxRotation(), alpha);
 	}
 
 	/**
@@ -156,6 +199,7 @@ public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
 	@Override
 	public void setOldPosAndRot() {
 		super.setOldPosAndRot();
+		this.bodyYawO = this.getBodyYaw();
 		this.headPitchO = this.getHeadPitch();
 		this.headYawO = this.getHeadYaw();
 		this.recalcLastHeadRotation();
@@ -170,12 +214,15 @@ public class FreeLivingEntity<T extends LivingEntity> extends FreeEntity<T> {
 	@Override
 	public void save(final CompoundTag data) {
 		super.save(data);
+		data.putFloat("bodyYaw", this.bodyYaw);
 		data.putFloat("headYaw", this.headYaw);
 	}
 
 	@Override
 	public void load(final CompoundTag data) {
 		super.load(data);
+		this.setBodyYaw(data.getFloat("bodyYaw"));
+		this.bodyYawO = this.getBodyYaw();
 		this.setHeadPitch(0);
 		this.headPitchO = this.getHeadPitch();
 		this.setHeadYaw(data.getFloat("headYaw"));

@@ -153,13 +153,21 @@ public abstract class MixinLocalPlayer extends AbstractClientPlayer implements E
 		if (!this.isControlledCamera()) {
 			return;
 		}
-		final FreeEntity<?> fe = this.vsfr$getFreeEntity();
+		final FreeLivingEntity<?> fe = (FreeLivingEntity<?>) this.vsfr$getFreeEntity();
 		if (fe == null || !fe.canFreeRotate()) {
 			return;
 		}
 		this.yya = fe.isBodyRotationLocked() ? 0 : ((this.input.jumping ? 1 : 0) + (this.input.shiftKeyDown ? -1 : 0));
-		this.xBob = this.xBobO + Mth.wrapDegrees(this.getViewXRot(1) - this.xBobO) * 0.5f;
-		this.yBob = this.yBobO + Mth.wrapDegrees(this.getViewYRot(1) - this.yBobO) * 0.5f;
+		this.xBob = this.xBobO + Mth.wrapDegrees(fe.getHeadPitch() * Mth.RAD_TO_DEG - this.xBobO) * 0.5f;
+		this.yBob = this.yBobO + Mth.wrapDegrees((fe.getHeadYaw() + fe.getBodyYaw()) * Mth.RAD_TO_DEG - this.yBobO) * 0.5f;
+		while (this.yBob > 180) {
+			this.yBob -= 360;
+			this.yBobO -= 360;
+		}
+		while (this.yBob < -180) {
+			this.yBob += 360;
+			this.yBobO += 360;
+		}
 	}
 
 	@Inject(method = "moveTowardsClosestSpace", at = @At("HEAD"), cancellable = true)

@@ -5,26 +5,28 @@ import com.github.litermc.vsfreerotation.accessor.LivingEntityAccessor;
 import com.github.litermc.vsfreerotation.impl.FreeEntity;
 import com.github.litermc.vsfreerotation.impl.FreeLivingEntity;
 import com.github.litermc.vsfreerotation.util.LevelUtil;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.tags.EntityTypeTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-
+import org.joml.Vector3d;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -160,5 +162,26 @@ public abstract class MixinLivingEntity extends Entity implements LivingEntityAc
 			return false;
 		}
 		return ((Object) this) instanceof Player player && player.getAbilities().flying;
+	}
+
+	@ModifyExpressionValue(
+		method = "calculateEntityAnimation",
+		at = @At(
+			value = "INVOKE",
+			target = "Lnet/minecraft/util/Mth;length(DDD)D"
+		)
+	)
+	public double calculateEntityAnimation$length(
+		double length,
+		@Local(argsOnly = true) final boolean includeY
+	) {
+		final FreeEntity<?> fe = ((EntityAccessor) this).vsfr$getFreeEntity();
+		if (fe != null && fe.canFreeRotate() && fe.getAnchor() == fe.getLastAnchor()) {
+			final Vector3d dist = fe.getRotation().transformInverse(new Vector3d(fe.getPosition()).sub(fe.getLastPosition()));
+			length = includeY
+					? dist.length()
+					: Mth.length(dist.x, dist.z);
+		}
+		return length;
 	}
 }

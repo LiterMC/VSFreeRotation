@@ -14,6 +14,7 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix4dc;
+import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
 import org.joml.primitives.AABBd;
@@ -89,6 +90,27 @@ public class FreeEntity<T extends Entity> extends Node {
 	public void setAnchor(final Node anchor) {
 		super.setAnchor(anchor);
 		this.anchorId = anchor == null ? 0 : anchor.getId();
+	}
+
+	/**
+	 * Get the hitbox rotation relative to the world
+	 * @return absolute hitbox rotation
+	 */
+	public Quaternionf getHitboxRotation() {
+		return this.getAbsRotation();
+	}
+
+	public Quaternionf getLastHitboxRotation() {
+		return this.getLastAbsRotation();
+	}
+
+	/**
+	 * Get the hitbox rotation relative to the world
+	 * @param alpha The ratio of current tick's rotation to previous one
+	 * @return relative rotation
+	 */
+	public Quaternionf getHitboxRotation(final float alpha) {
+		return this.getAbsRotation(alpha);
 	}
 
 	/**
