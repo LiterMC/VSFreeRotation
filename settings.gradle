@@ -36,6 +36,6 @@ plugins {
 }
 
 rootProject.name = 'VSFreeRotation'
-include("common")
-include("fabric")
-include("forge")
+include(":common")
+include(":fabric")
+include(":forge")

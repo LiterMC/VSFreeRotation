@@ -25,7 +25,7 @@ loom {
 
 	runs {
 		client {
-			vmArg "-Dmixin.env.disableRefMap=true"
+			// vmArg "-XX:+PrintCompilation"
 			property "mixin.env.disableRefMap", "true"
 		}
 	}
@@ -42,7 +42,6 @@ configurations {
 dependencies {
 	forge "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
-	compileOnly project(":common")
 	annotationProcessor "org.spongepowered:mixin:0.8.5-SNAPSHOT:processor"
 	compileOnly annotationProcessor("io.github.llamalad7:mixinextras-common:0.5.0")
 	implementation include("io.github.llamalad7:mixinextras-forge:0.5.0")
@@ -118,10 +117,6 @@ remapJar {
 	input.set shadowJar.archiveFile
 	dependsOn shadowJar
 	archiveClassifier.set null
-}
-
-jar {
-	archiveClassifier.set "dev"
 }
 
 components.java {

@@ -19,7 +19,7 @@ java {
 		languageVersion = JavaLanguageVersion.of(java_version)
 	}
 	withSourcesJar()
-	// withJavadocJar()
+	withJavadocJar()
 }
 
 repositories {

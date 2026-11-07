@@ -130,6 +130,24 @@ public abstract class MixinLocalPlayer extends AbstractClientPlayer implements E
 		return false;
 	}
 
+	@WrapOperation(
+		method = "aiStep",
+		slice = @Slice(
+			from = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/AbstractClientPlayer;aiStep()V")
+		),
+		at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;onGround()Z", ordinal = 0)
+	)
+	protected boolean aiStep$stopFlying$onGround(final LocalPlayer self, final Operation<Boolean> operation) {
+		if (!operation.call(self)) {
+			return false;
+		}
+		final FreeEntity<?> fe = this.vsfr$getFreeEntity();
+		if (fe == null || !fe.canFreeRotate()) {
+			return true;
+		}
+		return this.isDescending();
+	}
+
 	@Inject(method = "serverAiStep", at = @At("RETURN"))
 	public void serverAiStep(final CallbackInfo ci) {
 		if (!this.isControlledCamera()) {

@@ -46,7 +46,6 @@ dependencies {
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
 	include modApi("teamreborn:energy:3.0.0")
 
-	compileOnly project(":common")
 	compileOnly annotationProcessor("io.github.llamalad7:mixinextras-common:0.5.0")
 	implementation annotationProcessor("com.google.auto.service:auto-service:1.1.1")
 
